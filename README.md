@@ -2,10 +2,6 @@
 
 Converts numbers between decimal and an **8-bit floating-point format** in both directions, showing how each value is stored and how much precision is lost to truncation. Available as a **web app** and a **desktop app** (CustomTkinter), both backed by the same tested algorithm.
 
-**[▶ Try it in your browser](https://bniko05.github.io/8bit-floating-point-converter/)**
-
-![Web version](docs/web-demo.png)
-
 ---
 
 ## The format
