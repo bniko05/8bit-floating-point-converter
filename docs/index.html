@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>8-bit Floating-Point Converter</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔢</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f3f4f8;
+    --surface: #ffffff;
+    --ink: #1c1b3a;
+    --muted: #5d5f7a;
+    --rule: #d5d8e3;
+    --sign: #d1067f;
+    --exp: #2e5bff;
+    --mant: #0b8f69;
+    --error: #c2261f;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15142a;
+      --surface: #1f1e3a;
+      --ink: #ecebf7;
+      --muted: #a3a3c2;
+      --rule: #34335a;
+      --sign: #ff4fb4;
+      --exp: #7d9bff;
+      --mant: #3fd3a2;
+      --error: #ff7b73;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 400 1.0625rem/1.6 var(--sans);
+  }
+  main { max-width: 46rem; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
+  h1 { font-size: 1.75rem; line-height: 1.2; font-weight: 600; margin: 0 0 .5rem; letter-spacing: -.01em; }
+  h2 { font-size: 1.125rem; font-weight: 600; margin: 3rem 0 .75rem; }
+  p { margin: 0 0 1rem; max-width: 38rem; }
+  .lede { color: var(--muted); margin-bottom: 2.5rem; }
+
+  /* The bit register: the one bold element on the page */
+  .register { display: flex; gap: 1.25rem; flex-wrap: wrap; }
+  .field { display: flex; flex-direction: column; gap: .5rem; }
+  .field-bits { display: flex; gap: .375rem; }
+  .field-name { font-size: .875rem; color: var(--muted); }
+  .field-name strong { font-weight: 600; }
+  .field[data-field="sign"] { --c: var(--sign); }
+  .field[data-field="exp"]  { --c: var(--exp); }
+  .field[data-field="mant"] { --c: var(--mant); }
+  .field-name strong { color: var(--c); }
+
+  .bit {
+    width: 3.5rem; height: 4.25rem;
+    border: 2px solid var(--c);
+    border-radius: .5rem;
+    background: var(--surface);
+    color: var(--c);
+    font: 600 2rem/1 var(--mono);
+    cursor: pointer;
+    transition: background-color .12s, color .12s;
+  }
+  .bit[aria-pressed="true"] { background: var(--c); color: var(--surface); }
+  .bit:hover { box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 25%, transparent); }
+  .bit:focus-visible, input:focus-visible, button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+
+  .readout { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--rule); }
+  .value { font: 600 2.5rem/1.2 var(--mono); margin: 0 0 .25rem; overflow-wrap: anywhere; }
+  .formula { font: 500 1.0625rem/1.5 var(--mono); color: var(--muted); margin: 0; }
+  .formula .s { color: var(--sign); } .formula .e { color: var(--exp); } .formula .m { color: var(--mant); }
+
+  .encode { margin-top: 3rem; }
+  label { display: block; font-weight: 500; margin-bottom: .5rem; }
+  .encode-row { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; }
+  input {
+    width: 12rem; padding: .625rem .75rem;
+    font: 500 1.25rem/1.2 var(--mono);
+    color: var(--ink); background: var(--surface);
+    border: 2px solid var(--rule); border-radius: .5rem;
+  }
+  .hint { font-size: .9375rem; color: var(--muted); margin-top: .75rem; min-height: 1.6em; }
+  .hint.error { color: var(--error); }
+
+  table { border-collapse: collapse; font-size: .9375rem; margin: .5rem 0 1rem; }
+  td { padding: .375rem 1.5rem .375rem 0; border-bottom: 1px solid var(--rule); }
+  td:last-child { font-family: var(--mono); }
+  footer { margin-top: 3rem; font-size: .9375rem; color: var(--muted); }
+  a { color: inherit; text-underline-offset: .2em; }
+
+  @media (max-width: 34rem) {
+    .register { gap: .625rem; flex-wrap: nowrap; }
+    .field-bits { gap: .25rem; }
+    .field-name { font-size: .75rem; }
+    .bit { width: 2.125rem; height: 3rem; font-size: 1.3rem; border-radius: .375rem; }
+    .value { font-size: 1.875rem; }
+  }
+  @media (max-width: 22rem) {
+    main { padding-inline: 1rem; }
+    .register { gap: .5rem; }
+    .field-bits { gap: .1875rem; }
+    .bit { width: 1.875rem; height: 2.75rem; font-size: 1.15rem; }
+  }
+  @media (prefers-reduced-motion: reduce) { .bit { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>8-bit floating-point converter</h1>
+  <p class="lede">Click the bits to build a number, or type a decimal value to see how it is stored. Uses the textbook format with a sign bit, a 3-bit excess-4 exponent and a 4-bit mantissa.</p>
+
+  <div class="register" role="group" aria-label="8-bit pattern">
+    <div class="field" data-field="sign">
+      <div class="field-bits" data-bits="0-1"></div>
+      <span class="field-name"><strong>Sign</strong></span>
+    </div>
+    <div class="field" data-field="exp">
+      <div class="field-bits" data-bits="1-4"></div>
+      <span class="field-name"><strong>Exponent</strong> excess-4</span>
+    </div>
+    <div class="field" data-field="mant">
+      <div class="field-bits" data-bits="4-8"></div>
+      <span class="field-name"><strong>Mantissa</strong> 0.mmmm</span>
+    </div>
+  </div>
+
+  <section class="readout" aria-live="polite">
+    <p class="value" id="value"></p>
+    <p class="formula" id="formula"></p>
+  </section>
+
+  <section class="encode">
+    <label for="decimal">Convert a decimal number</label>
+    <div class="encode-row">
+      <input id="decimal" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="2.625" maxlength="24">
+    </div>
+    <p class="hint" id="hint" aria-live="polite">Accepts decimals, negative numbers and fractions such as 3/8.</p>
+  </section>
+
+  <h2>How the format works</h2>
+  <p>A value is stored as <em>sign × 0.mmmm × 2<sup>exponent</sup></em>. The exponent bits are read in excess-4 notation, so 100 means 0, 111 means 3 and 000 means −4. When converting to binary, the number is normalized so the first mantissa bit is 1, and bits that do not fit are truncated.</p>
+  <table>
+    <tr><td>Largest value</td><td>0 111 1111 = 7.5</td></tr>
+    <tr><td>Smallest positive (normalized)</td><td>0 000 1000 = 0.03125</td></tr>
+    <tr><td>Example with truncation</td><td>2.625 → 0 110 1010 = 2.5</td></tr>
+  </table>
+
+  <footer>Source code, desktop app and tests on <a href="https://github.com/bniko05/8bit-floating-point-converter">GitHub</a>.</footer>
+</main>
+
+<script src="converter.js"></script>
+<script>
+  const bits = ["0", "1", "1", "0", "1", "0", "1", "1"];   // 2.75, the textbook example
+  const buttons = [];
+
+  document.querySelectorAll(".field-bits").forEach(group => {
+    const [from, to] = group.dataset.bits.split("-").map(Number);
+    for (let i = from; i < to; i++) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "bit";
+      b.setAttribute("aria-label", `Bit ${i + 1}`);
+      b.addEventListener("click", () => {
+        bits[i] = bits[i] === "1" ? "0" : "1";
+        render();
+        setHint("Accepts decimals, negative numbers and fractions such as 3/8.");
+        decimal.value = "";
+      });
+      group.appendChild(b);
+      buttons[i] = b;
+    }
+  });
+
+  const value = document.getElementById("value");
+  const formula = document.getElementById("formula");
+  const decimal = document.getElementById("decimal");
+  const hint = document.getElementById("hint");
+
+  function render() {
+    buttons.forEach((b, i) => {
+      b.textContent = bits[i];
+      b.setAttribute("aria-pressed", bits[i] === "1");
+    });
+    const pattern = bits.join("");
+    value.textContent = Converter.formatValue(Converter.decode(pattern));
+    const exp = parseInt(pattern.slice(1, 4), 2) - 4;
+    formula.innerHTML =
+      `<span class="s">${pattern[0] === "1" ? "−" : "+"}</span> ` +
+      `<span class="m">0.${pattern.slice(4)}</span> × 2<sup class="e">${exp}</sup>`;
+  }
+
+  function setHint(text, isError = false) {
+    hint.textContent = text;
+    hint.classList.toggle("error", isError);
+  }
+
+  decimal.addEventListener("input", () => {
+    if (decimal.value.trim() === "") {
+      setHint("Accepts decimals, negative numbers and fractions such as 3/8.");
+      return;
+    }
+    try {
+      const r = Converter.encode(decimal.value);
+      r.bits.split("").forEach((b, i) => (bits[i] = b));
+      render();
+      setHint(r.exact
+        ? "Stored exactly."
+        : `Truncated: stored as ${Converter.formatValue(r.stored)}, losing ${Converter.formatValue(r.lost)}.`);
+    } catch (e) {
+      setHint(e.message, true);
+    }
+  });
+
+  render();
+</script>
+</body>
+</html>
