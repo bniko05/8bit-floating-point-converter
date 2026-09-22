@@ -1,8 +1,4 @@
-# 🔢 8-bit Floating-Point Converter
-
-[![Tests](https://github.com/bniko05/8bit-floating-point-converter/actions/workflows/tests.yml/badge.svg)](https://github.com/bniko05/8bit-floating-point-converter/actions/workflows/tests.yml)
-![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
-[![Live demo](https://img.shields.io/badge/demo-live-d1067f)](https://bniko05.github.io/8bit-floating-point-converter/)
+# 8-bit Floating-Point Converter
 
 Converts numbers between decimal and an **8-bit floating-point format** in both directions, showing how each value is stored and how much precision is lost to truncation. Available as a **web app** and a **desktop app** (CustomTkinter), both backed by the same tested algorithm.
 
